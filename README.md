@@ -1,2 +1,2 @@
 # CS-361
-Repository for CS-361 Assignments/Labs/Etc.
+Repository for CS-361 Assignments.
