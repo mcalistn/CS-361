@@ -111,14 +111,16 @@ while not plotValid:
     plotDisplay = plotDisplay.lower()
     plotValid = validateYN(plotDisplay)
 if plotDisplay == 'y':
-    plt.style.use('default')
-    fig, axs = plt.subplots(2, sharex='col', figsize=(13, 10))
-    fig.suptitle(tickerSymbol + ' Stock Price (top) - 14 day RSI (bottom)')
-    axs[0].plot(rawData['Adj Close'])
-    axs[1].plot(rawData['RSI'])
-    axs[0].grid()
-    axs[1].grid()
-    plt.show()
+    matplotlib.pyplot.style.use('default')
+    figure, axis = matplotlib.pyplot.subplots(2, sharex='col', figsize=(12, 10))
+    figure.suptitle(tickerSymbol + ' Stock Price (top) - 14 day RSI (bottom)')
+    axis[0].plot(rawData['Adj Close'])
+    axis[0].set_ylabel('Adjusted Closing Price, $')
+    axis[1].plot(rawData['RSI'])
+    axis[1].set_ylabel('RSI')
+    axis[0].grid(True)
+    axis[1].grid(True)
+    matplotlib.pyplot.show()
 
 
 
