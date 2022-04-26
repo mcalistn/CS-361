@@ -1,0 +1,131 @@
+import yfinance
+import pandas
+import pandas_datareader
+import datetime
+import numpy
+import matplotlib.pyplot as plt
+
+pandas.set_option('display.max_columns', None)
+pandas.set_option('display.max_rows', None)
+searchValid = False
+dateValid = False
+detailsValid = False
+plotValid = False
+rawData_txt_FP = '../pipeline/rawData.txt'
+
+
+def validateYN(userInput):
+    if (userInput == 'y') or (userInput == 'n'):
+        return True
+    else:
+        print("Please enter either 'y' or 'n'.")
+        return False
+
+
+def validateDate(userDate):
+    try:
+        datetime.datetime.strptime(userDate, "%m/%d/%Y")
+        return True
+    except ValueError:
+        print("Incorrect date format. Please enter date as MM/DD/YYYY")
+        return False
+
+
+# Get stock ticker from user
+while not searchValid:
+    stockSearchOpen = input("Do you want to search for a stock ticker? (y/n) ")
+    stockSearchOpen = stockSearchOpen.lower()
+    searchValid = validateYN(stockSearchOpen)
+if stockSearchOpen == 'y':
+    # Pull up the stock search function (microservice)
+    stockSearch = input("Enter company name to search: ")
+    # Placeholder for search stock function
+    tickerSymbol = 'MSFT'
+else:
+    tickerSymbol = input("Enter stock ticker: ")
+    tickerSymbol = tickerSymbol.upper()
+
+# Get date for stock information range from user.
+while not dateValid:
+    startDate = input("Please input the start date for the data retrieval. (MM/DD/YYYY): ")
+    dateValid = validateDate(startDate)
+month = startDate[0:2:1]
+day = startDate[3:5:1]
+year = startDate[6:10:1]
+print("\nGathering data for '" + tickerSymbol + "' from '" + month + "/" + day + "/" + year + "' Please wait...")
+
+# get data on this ticker
+tickerData = yfinance.Ticker(tickerSymbol)
+tickerStatistics = tickerData.stats()
+print("\nCurrent stock price: '" + tickerSymbol + "' = " + str(tickerStatistics['price']['regularMarketPrice']) + "\n")
+now = datetime.datetime.now()
+startDate = datetime.datetime(int(year), int(month), int(day))
+rawData = pandas_datareader.get_data_yahoo(tickerSymbol, startDate, now)
+
+# add RSI headers too dataframe
+rawData['Uptick'] = numpy.nan
+rawData['Downtick'] = numpy.nan
+rawData['Average Uptick'] = numpy.nan
+rawData['Average Downtick'] = numpy.nan
+rawData['RS'] = numpy.nan
+rawData['RSI'] = numpy.nan
+
+# calculate daily upticks and downticks of the stock
+for i in range(1, len(rawData)):
+    rawData['Uptick'][i] = 0
+    rawData['Downtick'][i] = 0
+    if rawData['Adj Close'][i] > rawData['Adj Close'][i - 1]:
+        rawData['Uptick'][i] = rawData['Adj Close'][i] - rawData['Adj Close'][i - 1]
+    if rawData['Adj Close'][i] < rawData['Adj Close'][i - 1]:
+        rawData['Downtick'][i] = abs(rawData['Adj Close'][i] - rawData['Adj Close'][i - 1])
+
+# calculate the average uptick, downtick, and relative strength index
+rawData['Average Uptick'][14] = rawData['Uptick'][1:15].mean()
+rawData['Average Downtick'][14] = rawData['Downtick'][1:15].mean()
+rawData['RS'][14] = rawData['Average Uptick'][14] / rawData['Average Downtick'][14]
+rawData['RSI'][14] = 100 - (100 / (1 + rawData['RS'][14]))
+for i in range(15, len(rawData)):
+    rawData['Average Uptick'][i] = ((13 * rawData['Average Uptick'][i - 1]) + (rawData['Uptick'][i])) / 14
+    rawData['Average Downtick'][i] = ((13 * rawData['Average Downtick'][i - 1]) + (rawData['Downtick'][i])) / 14
+    rawData['RS'][i] = rawData['Average Uptick'][i] / rawData['Average Downtick'][i]
+    rawData['RSI'][i] = 100 - (100 / (1 + rawData['RS'][i]))
+if (rawData['RSI'][len(rawData) - 1] > 70):
+    print("With a current RSI of " + str(round(rawData['RSI'][len(rawData) - 1], 2)) + " you should SELL!!!\n")
+elif (rawData['RSI'][len(rawData) - 1] < 30):
+    print("With a current RSI of " + str(round(rawData['RSI'][len(rawData) - 1], 2)) + " you should BUY!!!\n")
+else:
+    print("With a current RSI of " + str(round(rawData['RSI'][len(rawData) - 1], 2)) + " you should HOLD!!!\n")
+
+while not detailsValid:
+    detailDisplay = input("Do you want to display the detailed data? \nThis will print several pages of data. (y/n) ")
+    detailDisplay = detailDisplay.lower()
+    detailsValid = validateYN(detailDisplay)
+if detailDisplay == 'y':
+    print("\n")
+    print(rawData)
+    open(rawData_txt_FP, 'w').close()
+    open(rawData_txt_FP, 'w').write(rawData.to_string())
+
+while not plotValid:
+    plotDisplay = input("\nDo you want to display the data graphically?  (y/n) ")
+    plotDisplay = plotDisplay.lower()
+    plotValid = validateYN(plotDisplay)
+if plotDisplay == 'y':
+    plt.style.use('default')
+    fig, axs = plt.subplots(2, sharex='col', figsize=(13, 10))
+    fig.suptitle(tickerSymbol + ' Stock Price (top) - 14 day RSI (bottom)')
+    axs[0].plot(rawData['Adj Close'])
+    axs[1].plot(rawData['RSI'])
+    axs[0].grid()
+    axs[1].grid()
+    plt.show()
+
+
+
+# Citations
+# Andersen, S. (2020, December 29). Momentum trading with MACD and RSI - yfinance &amp; python. Medium.
+#       Retrieved April 25, 2022, from https://medium.com/analytics-vidhya/momentum-trading-with-macd-and-rsi-yfinance
+#       -python-e5203d2e1a8a
+
+
+
