@@ -1,2 +1,3 @@
-# CS-361
-Repository for CS-361 Assignments.
+# CS-361 Project
+
+Stock technical analysis tool
